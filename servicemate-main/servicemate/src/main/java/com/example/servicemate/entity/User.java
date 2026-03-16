@@ -25,6 +25,8 @@ public class User {
     @Column(nullable = false)
     private String role; // customer, provider, admin
 
+    // Line 27 in your User.java
+    @Column(unique = true, nullable = false, length = 10)
     private String phone;
 
     @Column(name = "service_type")

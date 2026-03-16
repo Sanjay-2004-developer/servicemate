@@ -56,14 +56,21 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@RequestBody UserDTO userDTO) {
         String email = userDTO.getEmail().toLowerCase().trim();
+        String phone = userDTO.getPhone().trim();
+
         if (userRepository.existsByEmail(email)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email already in use!");
+        }
+
+        // New Phone Uniqueness Check
+        if (userRepository.existsByPhone(phone)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Phone number already registered!");
         }
 
         User user = new User();
         user.setName(userDTO.getName());
         user.setEmail(email);
-        user.setPhone(userDTO.getPhone());
+        user.setPhone(phone);
         user.setRole(userDTO.getRole().toLowerCase());
         user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
 
