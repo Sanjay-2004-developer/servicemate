@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
-@Data // Generates getters, setters, toString, etc.
+@Data
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,9 +23,8 @@ public class User {
     private String password;
 
     @Column(nullable = false)
-    private String role; // customer, provider, admin
+    private String role;
 
-    // Line 27 in your User.java
     @Column(unique = true, nullable = false, length = 10)
     private String phone;
 
@@ -34,4 +33,23 @@ public class User {
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    // --- MANUALLY ADDED GETTERS/SETTERS TO STOP THE BUILD ERRORS ---
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
+
+    public String getServiceType() { return serviceType; }
+    public void setServiceType(String serviceType) { this.serviceType = serviceType; }
 }
