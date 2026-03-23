@@ -1,21 +1,31 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   BadgeCheck,
+  BriefcaseBusiness,
   CalendarDays,
   Clock3,
+  FileText,
   IndianRupee,
+  LoaderCircle,
   LogOut,
   MapPin,
+  Mail,
+  PencilLine,
+  Phone,
+  Save,
   ShieldCheck,
   Sparkles,
   Star,
   ToggleLeft,
   ToggleRight,
+  UserCircle2,
   Users,
   Wrench,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import api from '../api/axios';
 import LiveBackground from '../components/LiveBackground';
 
 const pipeline = [
@@ -91,10 +101,118 @@ const statusClasses = {
   'Awaiting quote': 'border-amber-300/20 bg-amber-300/10 text-amber-200',
 };
 
+const serviceTypeLabels = {
+  plumbing: 'Plumbing',
+  electrical: 'Electrical',
+  cleaning: 'Cleaning',
+  carpentry: 'Carpentry',
+};
+
+const defaultProfile = {
+  name: '',
+  email: '',
+  phone: '',
+  serviceType: 'electrical',
+  city: '',
+  bio: '',
+};
+
 const ProviderDashboard = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const [currentUser, setCurrentUser] = useState({ ...defaultProfile, ...storedUser });
   const [isAvailable, setIsAvailable] = useState(true);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    id: currentUser.id,
+    name: currentUser.name || '',
+    email: currentUser.email || '',
+    phone: currentUser.phone || '',
+    serviceType: currentUser.serviceType || 'electrical',
+    city: currentUser.city || '',
+    bio: currentUser.bio || '',
+  });
+
+  const profileCompletion = useMemo(() => {
+    const fields = ['name', 'email', 'phone', 'serviceType', 'city', 'bio'];
+    const completedFields = fields.filter((field) => String(profileForm[field] || '').trim()).length;
+    return Math.round((completedFields / fields.length) * 100);
+  }, [profileForm]);
+
+  const handleProfileFieldChange = (field, value) => {
+    setProfileForm((current) => ({
+      ...current,
+      [field]: field === 'phone' ? value.replace(/\D/g, '').slice(0, 10) : value,
+    }));
+  };
+
+  const handleCancelProfileEdit = () => {
+    setProfileForm({
+      id: currentUser.id,
+      name: currentUser.name || '',
+      email: currentUser.email || '',
+      phone: currentUser.phone || '',
+      serviceType: currentUser.serviceType || 'electrical',
+      city: currentUser.city || '',
+      bio: currentUser.bio || '',
+    });
+    setIsEditingProfile(false);
+  };
+
+  const handleSaveProfile = async (event) => {
+    event.preventDefault();
+
+    if (!profileForm.name.trim()) {
+      toast.error('Name is required');
+      return;
+    }
+
+    if (profileForm.phone.length !== 10) {
+      toast.error('Phone must be 10 digits');
+      return;
+    }
+
+    if (!profileForm.serviceType) {
+      toast.error('Please select a specialty');
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      const response = await api.put('/api/auth/profile', {
+        id: profileForm.id,
+        name: profileForm.name.trim(),
+        phone: profileForm.phone,
+        serviceType: profileForm.serviceType,
+        city: profileForm.city.trim(),
+        bio: profileForm.bio.trim(),
+      });
+
+      const updatedUser = {
+        ...currentUser,
+        ...response.data.user,
+      };
+
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setCurrentUser(updatedUser);
+      setProfileForm({
+        id: updatedUser.id,
+        name: updatedUser.name || '',
+        email: updatedUser.email || '',
+        phone: updatedUser.phone || '',
+        serviceType: updatedUser.serviceType || 'electrical',
+        city: updatedUser.city || '',
+        bio: updatedUser.bio || '',
+      });
+      setIsEditingProfile(false);
+      toast.success('Profile updated');
+    } catch (error) {
+      toast.error(error.response?.data || 'Failed to update profile');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -117,15 +235,15 @@ const ProviderDashboard = () => {
                 Provider Operations
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white/10 text-2xl font-black text-white">
-                  {user?.name?.[0] || 'P'}
+                    <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white/10 text-2xl font-black text-white">
+                  {currentUser?.name?.[0] || 'P'}
                 </div>
                 <div>
                   <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl">
-                    {user?.name || 'Service Professional'}
+                    {currentUser?.name || 'Service Professional'}
                   </h1>
                   <p className="mt-2 text-sm text-slate-300 sm:text-base">
-                    {user?.serviceType || 'General'} expert dashboard with live demand, earnings and schedule visibility.
+                    {(serviceTypeLabels[currentUser?.serviceType] || currentUser?.serviceType || 'General')} expert dashboard with live demand, earnings and schedule visibility.
                   </p>
                 </div>
               </div>
@@ -135,7 +253,7 @@ const ProviderDashboard = () => {
               <button
                 type="button"
                 onClick={() => setIsAvailable((current) => !current)}
-                className="inline-flex items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08]"
+                className="theme-button-secondary inline-flex items-center justify-center gap-3 rounded-2xl px-5 py-3 text-sm font-semibold transition"
               >
                 {isAvailable ? <ToggleRight size={18} className="text-emerald-300" /> : <ToggleLeft size={18} className="text-slate-500" />}
                 {isAvailable ? 'Available for new jobs' : 'Currently offline'}
@@ -143,7 +261,7 @@ const ProviderDashboard = () => {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                className="theme-button-primary inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition"
               >
                 <LogOut size={16} />
                 Logout
@@ -176,6 +294,206 @@ const ProviderDashboard = () => {
 
         <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="space-y-6">
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.16 }}
+              className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl"
+            >
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="max-w-2xl">
+                  <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">
+                    <UserCircle2 size={14} />
+                    Provider Profile
+                  </div>
+                  <h2 className="text-2xl font-bold text-white">Build trust before the first call</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Keep your core details sharp so customers see the right specialty, location and service identity.
+                  </p>
+                </div>
+
+                {!isEditingProfile ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingProfile(true)}
+                    className="theme-button-secondary inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition"
+                  >
+                    <PencilLine size={16} />
+                    Edit profile
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="mt-6 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+                <div className="rounded-[28px] border border-white/8 bg-black/20 p-5">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-[28px] bg-gradient-to-br from-cyan-300/30 to-emerald-300/20 text-3xl font-black text-white">
+                      {(profileForm.name || currentUser.name || 'P').charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">{profileForm.name || 'Service Professional'}</h3>
+                      <p className="mt-1 text-sm text-cyan-200">
+                        {serviceTypeLabels[profileForm.serviceType] || profileForm.serviceType || 'General specialist'}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-400">
+                        {profileForm.city?.trim() || 'Add your city to improve local discovery'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 space-y-3 text-sm text-slate-300">
+                    <div className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                      <Mail size={16} className="text-slate-400" />
+                      <span>{profileForm.email || 'No email available'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                      <Phone size={16} className="text-slate-400" />
+                      <span>{profileForm.phone ? `+91 ${profileForm.phone}` : 'Add a contact number'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                      <MapPin size={16} className="text-slate-400" />
+                      <span>{profileForm.city || 'City not added yet'}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 rounded-3xl border border-emerald-300/10 bg-emerald-300/5 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-white">Profile completion</p>
+                        <p className="mt-1 text-sm text-slate-400">A stronger profile helps conversion and response quality.</p>
+                      </div>
+                      <span className="text-2xl font-black text-emerald-200">{profileCompletion}%</span>
+                    </div>
+                    <div className="mt-4 h-2 rounded-full bg-white/5">
+                      <div
+                        className="theme-progress-fill h-2 rounded-full"
+                        style={{ width: `${profileCompletion}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSaveProfile} className="rounded-[28px] border border-white/8 bg-black/20 p-5">
+                  <div className="mb-5 flex items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Profile details</h3>
+                      <p className="mt-1 text-sm text-slate-400">Update how customers see and contact you.</p>
+                    </div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-semibold text-slate-300">
+                      <BriefcaseBusiness size={14} />
+                      Provider
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-300">Full name</span>
+                      <input
+                        type="text"
+                        value={profileForm.name}
+                        onChange={(event) => handleProfileFieldChange('name', event.target.value)}
+                        disabled={!isEditingProfile || isSavingProfile}
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/40 disabled:cursor-not-allowed disabled:opacity-70"
+                        placeholder="Your public display name"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-300">Phone</span>
+                      <input
+                        type="text"
+                        value={profileForm.phone}
+                        onChange={(event) => handleProfileFieldChange('phone', event.target.value)}
+                        disabled={!isEditingProfile || isSavingProfile}
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/40 disabled:cursor-not-allowed disabled:opacity-70"
+                        placeholder="10-digit mobile number"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-300">Specialty</span>
+                      <select
+                        value={profileForm.serviceType}
+                        onChange={(event) => handleProfileFieldChange('serviceType', event.target.value)}
+                        disabled={!isEditingProfile || isSavingProfile}
+                        className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-cyan-300/40 disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {Object.entries(serviceTypeLabels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium text-slate-300">City</span>
+                      <input
+                        type="text"
+                        value={profileForm.city}
+                        onChange={(event) => handleProfileFieldChange('city', event.target.value)}
+                        disabled={!isEditingProfile || isSavingProfile}
+                        className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/40 disabled:cursor-not-allowed disabled:opacity-70"
+                        placeholder="Where you primarily serve"
+                      />
+                    </label>
+                  </div>
+
+                  <label className="mt-4 block">
+                    <span className="mb-2 block text-sm font-medium text-slate-300">Email</span>
+                    <input
+                      type="email"
+                      value={profileForm.email}
+                      disabled
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-slate-400 outline-none"
+                    />
+                  </label>
+
+                  <label className="mt-4 block">
+                    <span className="mb-2 block text-sm font-medium text-slate-300">Professional bio</span>
+                    <textarea
+                      value={profileForm.bio}
+                      onChange={(event) => handleProfileFieldChange('bio', event.target.value)}
+                      disabled={!isEditingProfile || isSavingProfile}
+                      rows={5}
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/40 disabled:cursor-not-allowed disabled:opacity-70"
+                      placeholder="Highlight your experience, approach and what customers can expect."
+                    />
+                  </label>
+
+                  <div className="mt-5 rounded-3xl border border-white/8 bg-white/[0.03] p-4 text-sm text-slate-300">
+                    <div className="flex items-start gap-3">
+                      <FileText size={18} className="mt-0.5 text-cyan-200" />
+                      <p>
+                        Customers are more likely to trust profiles with a clear specialty, service area and a short intro.
+                      </p>
+                    </div>
+                  </div>
+
+                  {isEditingProfile ? (
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <button
+                        type="submit"
+                        disabled={isSavingProfile}
+                        className="theme-button-primary inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {isSavingProfile ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />}
+                        Save profile
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelProfileEdit}
+                        disabled={isSavingProfile}
+                        className="theme-button-secondary inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : null}
+                </form>
+              </div>
+            </motion.section>
+
             <motion.section
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -230,13 +548,13 @@ const ProviderDashboard = () => {
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button
                         type="button"
-                        className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-100"
+                        className="theme-button-primary rounded-2xl px-4 py-2 text-sm font-semibold transition"
                       >
                         Accept job
                       </button>
                       <button
                         type="button"
-                        className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08]"
+                        className="theme-button-secondary rounded-2xl px-4 py-2 text-sm font-semibold transition"
                       >
                         Send quote
                       </button>
@@ -301,7 +619,7 @@ const ProviderDashboard = () => {
                     </div>
                     <div className="h-2 rounded-full bg-white/5">
                       <div
-                        className="h-2 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300"
+                        className="theme-progress-fill h-2 rounded-full"
                         style={{ width: `${Math.min(slot.jobs * 15, 100)}%` }}
                       />
                     </div>

@@ -9,6 +9,7 @@ import VerifyOTP from './pages/VerifyOTP';
 import ResetPassword from './pages/ResetPassword';
 import CustomerDashboard from './pages/CustomerDashboard';
 import ProviderDashboard from './pages/ProviderDashboard';
+import ThemeToggle from './components/ThemeToggle';
 
 // Helper component to protect dashboard routes
 const ProtectedRoute = ({ children, role }) => {
@@ -26,6 +27,7 @@ function App() {
     // Replace with your actual Client ID from Google Cloud Console
     <GoogleOAuthProvider clientId="1016094891451-ejbv4brsqqosojin2rmpf62ua9j23s1i.apps.googleusercontent.com">
       <Router>
+        <ThemeToggle />
         <Toaster position="top-right" reverseOrder={false} />
         <Routes>
           {/* Public Routes */}
