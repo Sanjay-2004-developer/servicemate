@@ -63,6 +63,8 @@ public class AuthController {
         user.setRole(userDTO.getRole().toLowerCase());
         user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         if ("provider".equals(user.getRole())) user.setServiceType(userDTO.getServiceType());
+        user.setCity(userDTO.getCity());
+        user.setBio(userDTO.getBio());
 
         userRepository.save(user);
         return ResponseEntity.ok("User registered successfully!");
@@ -148,5 +150,56 @@ public class AuthController {
             return ResponseEntity.ok("Password Reset Successful");
         }
         return ResponseEntity.status(404).body("Error");
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(@RequestBody UserDTO profileDTO) {
+        if (profileDTO.getId() == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("User id is required");
+        }
+
+        Optional<User> userOpt = userRepository.findById(profileDTO.getId());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        }
+
+        User user = userOpt.get();
+
+        String trimmedName = profileDTO.getName() == null ? "" : profileDTO.getName().trim();
+        String trimmedPhone = profileDTO.getPhone() == null ? "" : profileDTO.getPhone().trim();
+        String trimmedServiceType = profileDTO.getServiceType() == null ? null : profileDTO.getServiceType().trim();
+        String trimmedCity = profileDTO.getCity() == null ? null : profileDTO.getCity().trim();
+        String trimmedBio = profileDTO.getBio() == null ? null : profileDTO.getBio().trim();
+
+        if (trimmedName.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Name is required");
+        }
+
+        if (!trimmedPhone.matches("\\d{10}")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Phone must be 10 digits");
+        }
+
+        if (!trimmedPhone.equals(user.getPhone()) && userRepository.existsByPhone(trimmedPhone)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Phone already in use");
+        }
+
+        user.setName(trimmedName);
+        user.setPhone(trimmedPhone);
+        user.setCity(trimmedCity);
+        user.setBio(trimmedBio);
+
+        if ("provider".equalsIgnoreCase(user.getRole())) {
+            if (trimmedServiceType == null || trimmedServiceType.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Service type is required");
+            }
+            user.setServiceType(trimmedServiceType);
+        }
+
+        userRepository.save(user);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Profile updated successfully");
+        response.put("user", user);
+        return ResponseEntity.ok(response);
     }
 }

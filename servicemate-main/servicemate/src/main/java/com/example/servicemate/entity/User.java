@@ -31,6 +31,12 @@ public class User {
     @Column(name = "service_type")
     private String serviceType;
 
+    @Column(name = "city")
+    private String city;
+
+    @Column(name = "bio", length = 1000)
+    private String bio;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -52,4 +58,10 @@ public class User {
 
     public String getServiceType() { return serviceType; }
     public void setServiceType(String serviceType) { this.serviceType = serviceType; }
+
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
 }
